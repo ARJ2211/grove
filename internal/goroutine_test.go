@@ -98,3 +98,62 @@ func TestRun_PanicWithNonError(t *testing.T) {
 		t.Errorf("expected stack trace")
 	}
 }
+
+func TestCapturePanic_NilReturn(t *testing.T) {
+	err := CapturePanic(func() error { return nil })
+
+	if err != nil {
+		t.Errorf("expected no error, got: %v", err)
+	}
+}
+
+func TestCapturePanic_ErrorReturn(t *testing.T) {
+	err := CapturePanic(func() error { return errors.New("string error") })
+
+	if err == nil {
+		t.Errorf("expected error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "string error") {
+		t.Errorf("expected string panic, got: %v", err.Error())
+	}
+}
+
+func TestCapturePanic_PanicWithString(t *testing.T) {
+	err := CapturePanic(func() error { panic("string panic") })
+
+	var pe grove.PanicError
+	if err == nil {
+		t.Errorf("expected error, got: %v", err)
+	}
+	if !(errors.As(err, &pe)) {
+		t.Errorf("expected a panic error, got: %v", err)
+	}
+	if !strings.Contains(pe.Error(), "string panic") {
+		t.Errorf("expected string panic, got: %v", pe.Error())
+	}
+	if !strings.Contains(pe.Error(), "goroutine") {
+		t.Errorf("expected stack trace")
+	}
+}
+
+func TestCapturePanic_PanicWithError(t *testing.T) {
+	fnError := errors.New("string error panic")
+	err := CapturePanic(func() error { panic(fnError) })
+
+	var pe grove.PanicError
+	if err == nil {
+		t.Errorf("expected error, got: %v", err)
+	}
+	if !(errors.Is(err, fnError)) {
+		t.Errorf("expected to find fnError in the error chain")
+	}
+	if !(errors.As(err, &pe)) {
+		t.Errorf("expected a panic error, got: %v", err)
+	}
+	if !strings.Contains(pe.Error(), "string error panic") {
+		t.Errorf("expected string panic, got: %v", pe.Error())
+	}
+	if !strings.Contains(pe.Error(), "goroutine") {
+		t.Errorf("expected stack trace")
+	}
+}
