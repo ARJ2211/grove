@@ -13,7 +13,7 @@ func Run(name string, fn func() error, errChan chan<- error) {
 		err := CapturePanic(fn)
 
 		if err != nil {
-			errChan <- fmt.Errorf("task [%s]: %w", name, err)
+			errChan <- fmt.Errorf("task [%s] - %w", name, err)
 		} else {
 			errChan <- nil
 		}
