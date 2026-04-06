@@ -12,10 +12,12 @@ type PanicError struct {
 	stack []byte
 }
 
-// Catches a slice of errors when multiple goroutines
-// are ran under a grove.
-type MultiError struct {
-	errors []error
+// Creates a new panic error
+func NewPanicError(v any, s []byte) PanicError {
+	return PanicError{
+		value: v,
+		stack: s,
+	}
 }
 
 // Allows PanicError to adhere to the error contract.
@@ -35,6 +37,12 @@ func (e PanicError) Unwrap() error {
 		return nil
 	}
 	return err
+}
+
+// Catches a slice of errors when multiple goroutines
+// are ran under a grove.
+type MultiError struct {
+	errors []error
 }
 
 // Allows MultiError to adhere to the error contract.
