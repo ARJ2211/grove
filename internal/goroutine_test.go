@@ -8,6 +8,8 @@ import (
 	"github.com/ARJ2211/grove"
 )
 
+// Tests for Run()
+
 func TestRun_NilReturn(t *testing.T) {
 	errChan := make(chan error, 1)
 
@@ -98,6 +100,8 @@ func TestRun_PanicWithNonError(t *testing.T) {
 		t.Errorf("expected stack trace")
 	}
 }
+
+// Test for CapturePanic()
 
 func TestCapturePanic_NilReturn(t *testing.T) {
 	err := CapturePanic(func() error { return nil })
