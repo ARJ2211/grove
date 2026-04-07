@@ -2,6 +2,7 @@ package grove
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/ARJ2211/grove/internal"
@@ -10,6 +11,7 @@ import (
 type Grove struct {
 	ctx    context.Context         // hold the context of the goroutine
 	cancel context.CancelCauseFunc // capture any error or cause of cancel
+	closed bool                    //check if the grove is closed
 	wg     sync.WaitGroup          // track the number of goroutines under a grove
 	mu     sync.Mutex              // lock the common resources [errs]
 	errs   []error                 // catch the errors within the grove
@@ -23,6 +25,7 @@ func Run(ctx context.Context, fn func(*Grove) error) error {
 	g := Grove{
 		ctx:    ctx,
 		cancel: cancel,
+		closed: false,
 		errs:   []error{},
 	}
 
@@ -33,12 +36,26 @@ func Run(ctx context.Context, fn func(*Grove) error) error {
 
 	// wait for the grove to finish collecting all errors
 	g.wg.Wait()
+
+	// close the grove
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+
 	return Join(g.errs...)
 }
 
 // Launches all the goroutines within the grove.
 func (g *Grove) Go(name string, fn func(ctx context.Context) error) {
+	g.mu.Lock()
+	// check if the grove is closed
+	if g.closed {
+		panic(ErrClosedGrove)
+	}
+
+	// add the goroutine to the waitgroup
 	g.wg.Add(1)
+	g.mu.Unlock()
 
 	go func() {
 		defer g.wg.Done()
@@ -58,3 +75,7 @@ func (g *Grove) Go(name string, fn func(ctx context.Context) error) {
 func (g *Grove) Context() context.Context {
 	return g.ctx
 }
+
+var (
+	ErrClosedGrove error = errors.New("cannot access closed grove")
+)
