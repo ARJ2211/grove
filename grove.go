@@ -3,6 +3,8 @@ package grove
 import (
 	"context"
 	"sync"
+
+	"github.com/ARJ2211/grove/internal"
 )
 
 type Grove struct {
@@ -34,10 +36,26 @@ func Run(ctx context.Context, fn func(*Grove) error) error {
 	return Join(g.errs...)
 }
 
-// func (g *Grove) Go(name string, fn func(ctx context.Context) error) {
+// Launches all the goroutines within the grove.
+func (g *Grove) Go(name string, fn func(ctx context.Context) error) {
+	g.wg.Add(1)
 
-// 	g.wg.Add(1)
-// 	defer g.wg.Done()
+	go func() {
+		err := internal.CapturePanic(func() error { return fn(g.ctx) })
 
-// }
-// func (g *Grove) Context() context.Context
+		if err != nil {
+			g.mu.Lock()
+			g.errs = append(g.errs, err)
+			g.mu.Unlock()
+
+			g.cancel(err)
+		}
+
+		g.wg.Done()
+	}()
+}
+
+// Expose the grove context to the user.
+func (g *Grove) Context() context.Context {
+	return g.ctx
+}
