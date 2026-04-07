@@ -4,40 +4,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/ARJ2211/grove/internal"
 )
 
-// Catches all panics and wraps them as an error.
-type PanicError struct {
-	value any
-	stack []byte
-}
-
-// Creates a new panic error
-func NewPanicError(v any, s []byte) PanicError {
-	return PanicError{
-		value: v,
-		stack: s,
-	}
-}
-
-// Allows PanicError to adhere to the error contract.
-func (e PanicError) Error() string {
-	strVal := fmt.Sprintf("%v", e.value)
-	strStack := string(e.stack)
-
-	msg := fmt.Sprintf("panic: %s \nStack trace: \n%s", strVal, strStack)
-	return msg
-}
-
-// Adds chain traversal support for errors.Is and errors.As
-func (e PanicError) Unwrap() error {
-	err, ok := e.value.(error)
-
-	if !ok {
-		return nil
-	}
-	return err
-}
+// Alias for the public API so users can do errors.Is
+type PanicError = internal.PanicError
 
 // Catches a slice of errors when multiple goroutines
 // are ran under a grove.

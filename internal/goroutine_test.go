@@ -4,8 +4,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/ARJ2211/grove"
 )
 
 // Tests for Run()
@@ -59,7 +57,7 @@ func TestRun_PanicWithError(t *testing.T) {
 	Run("t3", func() error { panicFn(4, 0); return nil }, errChan)
 
 	chanVal := <-errChan
-	var pe grove.PanicError
+	var pe PanicError
 
 	if !errors.As(chanVal, &pe) {
 		t.Errorf("expected panic error, got: %v", chanVal)
@@ -88,7 +86,7 @@ func TestRun_PanicWithNonError(t *testing.T) {
 	Run("t4", func() error { panicFn(4, 0); return nil }, errChan)
 
 	chanVal := <-errChan
-	var pe grove.PanicError
+	var pe PanicError
 
 	if !errors.As(chanVal, &pe) {
 		t.Errorf("expected panic error, got: %v", chanVal)
@@ -125,7 +123,7 @@ func TestCapturePanic_ErrorReturn(t *testing.T) {
 func TestCapturePanic_PanicWithString(t *testing.T) {
 	err := CapturePanic(func() error { panic("string panic") })
 
-	var pe grove.PanicError
+	var pe PanicError
 	if err == nil {
 		t.Errorf("expected error, got: %v", err)
 	}
@@ -144,7 +142,7 @@ func TestCapturePanic_PanicWithError(t *testing.T) {
 	fnError := errors.New("string error panic")
 	err := CapturePanic(func() error { panic(fnError) })
 
-	var pe grove.PanicError
+	var pe PanicError
 	if err == nil {
 		t.Errorf("expected error, got: %v", err)
 	}

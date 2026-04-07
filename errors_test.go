@@ -5,12 +5,17 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/ARJ2211/grove/internal"
 )
 
 // PanicError.Error() tests
 
 func TestPanicError_Error_WithString(t *testing.T) {
-	e := PanicError{value: "index out of range", stack: []byte("goroutine 1 [running]")}
+	e := internal.NewPanicError(
+		"index out of range",
+		[]byte("goroutine 1 [running]"),
+	)
 	msg := e.Error()
 
 	if !strings.Contains(msg, "index out of range") {
@@ -22,7 +27,7 @@ func TestPanicError_Error_WithString(t *testing.T) {
 }
 
 func TestPanicError_Error_WithInteger(t *testing.T) {
-	e := PanicError{value: 42, stack: []byte("goroutine 1 [running]")}
+	e := internal.NewPanicError(42, []byte("goroutine 1 [running]"))
 	msg := e.Error()
 
 	if !strings.Contains(msg, "42") {
@@ -32,7 +37,10 @@ func TestPanicError_Error_WithInteger(t *testing.T) {
 
 func TestPanicError_Error_WithStruct(t *testing.T) {
 	type myStruct struct{ Code int }
-	e := PanicError{value: myStruct{Code: 500}, stack: []byte("goroutine 1 [running]")}
+	e := internal.NewPanicError(
+		myStruct{Code: 500},
+		[]byte("goroutine 1 [running]"),
+	)
 	msg := e.Error()
 
 	if !strings.Contains(msg, "500") {
@@ -42,7 +50,7 @@ func TestPanicError_Error_WithStruct(t *testing.T) {
 
 func TestPanicError_Error_WithError(t *testing.T) {
 	inner := errors.New("database connection lost")
-	e := PanicError{value: inner, stack: []byte("goroutine 1 [running]")}
+	e := internal.NewPanicError(inner, []byte("goroutine 1 [running]"))
 	msg := e.Error()
 
 	if !strings.Contains(msg, "database connection lost") {
@@ -54,7 +62,7 @@ func TestPanicError_Error_WithError(t *testing.T) {
 
 func TestPanicError_Unwrap_WhenValueIsError(t *testing.T) {
 	inner := errors.New("something specific")
-	e := PanicError{value: inner, stack: []byte("trace")}
+	e := internal.NewPanicError(inner, []byte("trace"))
 
 	unwrapped := e.Unwrap()
 	if unwrapped == nil {
@@ -66,7 +74,7 @@ func TestPanicError_Unwrap_WhenValueIsError(t *testing.T) {
 }
 
 func TestPanicError_Unwrap_WhenValueIsNotError(t *testing.T) {
-	e := PanicError{value: "just a string", stack: []byte("trace")}
+	e := internal.NewPanicError("just a string", []byte("trace"))
 
 	unwrapped := e.Unwrap()
 	if unwrapped != nil {
@@ -76,9 +84,9 @@ func TestPanicError_Unwrap_WhenValueIsNotError(t *testing.T) {
 
 func TestPanicError_Unwrap_ErrorsAs(t *testing.T) {
 	inner := fmt.Errorf("wrapped: %w", errors.New("root cause"))
-	e := PanicError{value: inner, stack: []byte("trace")}
+	e := internal.NewPanicError(inner, []byte("trace"))
 
-	var target PanicError
+	var target internal.PanicError
 	if !errors.As(e, &target) {
 		t.Error("expected errors.As to find PanicError")
 	}
