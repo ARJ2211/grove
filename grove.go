@@ -39,9 +39,9 @@ func Run(ctx context.Context, fn func(*Grove) error) error {
 // Launches all the goroutines within the grove.
 func (g *Grove) Go(name string, fn func(ctx context.Context) error) {
 	g.wg.Add(1)
-	defer g.wg.Done()
 
 	go func() {
+		defer g.wg.Done()
 		err := internal.CapturePanic(func() error { return fn(g.ctx) })
 
 		if err != nil {
