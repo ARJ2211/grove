@@ -278,3 +278,42 @@ func TestRun_NestedGrove(t *testing.T) {
 		t.Errorf("expected nested error in chain, got: %v", err)
 	}
 }
+
+func TestRun_ClosedGrove(t *testing.T) {
+	var savedGrove *Grove
+	ctx := context.Background()
+
+	defer func() {
+		r := recover()
+
+		if r == nil {
+			t.Errorf("expected panic recovery")
+		}
+
+		err, ok := r.(error)
+		if !ok {
+			t.Errorf("expected an error object, got: %T", r)
+		}
+		if !strings.Contains(err.Error(), "cannot access closed grove") {
+			t.Errorf("incorrect panic received, got: %v", err)
+		}
+	}()
+
+	err := Run(ctx, func(g *Grove) error {
+		savedGrove = g
+
+		g.Go("function", func(ctx context.Context) error {
+			return nil
+		})
+
+		return nil
+	})
+
+	savedGrove.Go("error_func", func(ctx context.Context) error {
+		return nil
+	})
+
+	if err != nil {
+		t.Errorf("expected no error in, got: %v", err)
+	}
+}
