@@ -317,3 +317,33 @@ func TestRun_ClosedGrove(t *testing.T) {
 		t.Errorf("expected no error in, got: %v", err)
 	}
 }
+
+func TestRun_NestedGrove_InsideGoroutine(t *testing.T) {
+	parentCtx := context.Background()
+	nestedErr := errors.New("nested inside goroutine")
+
+	err := Run(parentCtx, func(g *Grove) error {
+		g.Go("function", func(ctx context.Context) error {
+			return nil
+		})
+
+		g.Go("nested", func(ctx context.Context) error {
+			// grove nested inside a goroutine
+			nestedCtx := context.Background()
+			err := Run(nestedCtx, func(g *Grove) error {
+				return nestedErr
+			})
+
+			return err
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected error, got: %v", err)
+	}
+	if !errors.Is(err, nestedErr) {
+		t.Errorf("expected nested error, got: %v", err)
+	}
+}
