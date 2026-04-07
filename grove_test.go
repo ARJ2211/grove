@@ -248,3 +248,33 @@ func TestRun_ParentContextCancelled(t *testing.T) {
 		t.Errorf("expected cancelled context, got: %v", err)
 	}
 }
+
+func TestRun_NestedGrove(t *testing.T) {
+	parentCTX := context.Background()
+	e := errors.New("nested error")
+
+	err := Run(parentCTX, func(g *Grove) error {
+		g.Go("some_func", func(ctx context.Context) error {
+			return nil
+		})
+
+		// nested grove that should percolate its errors up.
+		nestedCTX := context.Background()
+		err := Run(nestedCTX, func(g *Grove) error {
+			g.Go("nested_func1", func(ctx context.Context) error {
+				panic(e)
+			})
+
+			return nil
+		})
+
+		return err
+	})
+
+	if err == nil {
+		t.Errorf("expected error, got: %v", err)
+	}
+	if !errors.Is(err, e) {
+		t.Errorf("expected nested error in chain, got: %v", err)
+	}
+}
