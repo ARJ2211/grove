@@ -174,6 +174,7 @@ func (inv *InventoryService) Get(
 // main function where our http mocks will be created
 // and ran under a grove
 func main() {
+	fmt.Print("\033[H\033[2J")
 	var t0 time.Time
 
 	prodService := &ProductService{}
@@ -216,6 +217,44 @@ func main() {
 		os.Exit(1)
 	}
 	printProductPage(pp, time.Since(t0))
+
+	// second grove with one error (single error path)
+	t0 = time.Now()
+	oneErrorCtx := context.Background()
+
+	err = grove.Run(oneErrorCtx, func(g *grove.Grove) error {
+		g.Go("fetch-prods", func(ctx context.Context) error {
+			return prodService.Get(false, pp, d())
+		})
+
+		g.Go("fetch-prices", func(ctx context.Context) error {
+			return prodPrices.Get(true, pp, d())
+		})
+
+		g.Go("fetch-reviews", func(ctx context.Context) error {
+			return prodReviews.Get(false, pp, d())
+		})
+
+		g.Go("fetch-inv", func(ctx context.Context) error {
+			return prodInventory.Get(false, pp, d())
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		fmt.Println("expected one error, got nil")
+		os.Exit(1)
+	} else if errors.Is(err, ErrPricingSerivce) {
+		fmt.Println("[CASE 2] One error path complete!")
+		fmt.Printf("Time to complete -> %.2f sec\n", time.Since(t0).Seconds())
+		fmt.Printf("error: %v", err)
+	} else {
+		fmt.Println("One error path complete!")
+		fmt.Printf("Time to complete -> %.2f sec\n", time.Since(t0).Seconds())
+		fmt.Printf("Caught unknown error, got: %v", err)
+		os.Exit(1)
+	}
 }
 
 // function to get duration
@@ -232,8 +271,8 @@ func d() time.Duration {
 
 // function to print the product page
 func printProductPage(pp *ProductPage, elapsed time.Duration) {
-	fmt.Printf("\nTime to complete -> %.2f sec\n\n", elapsed.Seconds())
-	fmt.Println("Happy path complete!")
+	fmt.Println("\n\n[CASE 1] Happy path complete!")
+	fmt.Printf("Time to complete -> %.2f sec\n", elapsed.Seconds())
 	fmt.Println("Product Page Details:")
 
 	for _, product := range pp.Products.products {
