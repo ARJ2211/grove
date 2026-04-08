@@ -423,7 +423,46 @@ func TestIntegration_CorrectOrdering(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected nil error, got: %v", err)
 	}
-	if !(t1-t0 > 200) {
+	if t1-t0 < 200 {
 		t.Errorf("expected duration of run > 200, got: %v", t1-t0)
+	}
+}
+
+func TestIntegration_CancellationTiming(t *testing.T) {
+	var t1 int64
+	t0 := time.Now().UnixMilli()
+	parentCtx := context.Background()
+	expectedErr := errors.New("expected error")
+
+	err := Run(parentCtx, func(g *Grove) error {
+		g.Go("error_func", func(ctx context.Context) error {
+			return expectedErr
+		})
+
+		g.Go("context_close", func(ctx context.Context) error {
+			select {
+			case <-time.After(2 * time.Second):
+				{
+					return nil
+				}
+			case <-g.Context().Done():
+				{
+					t1 = time.Now().UnixMilli()
+					return ctx.Err()
+				}
+			}
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected error, got: %v", err)
+	}
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("expected expectedError in chain, got: %v", expectedErr)
+	}
+	if t1-t0 > 5 {
+		t.Errorf("expected nil error, got: %v", err)
 	}
 }
