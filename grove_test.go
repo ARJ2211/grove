@@ -3,6 +3,7 @@ package grove
 import (
 	"context"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -360,4 +361,69 @@ func TestContext_ContextNotNil(t *testing.T) {
 
 		return nil
 	})
+}
+
+func TestIntegration_NoGoroutineLeaks(t *testing.T) {
+	numStart := runtime.NumGoroutine()
+	ctx := context.Background()
+
+	f1 := func() error {
+		return nil
+	}
+	f2 := func() error {
+		return nil
+	}
+	f3 := func() error {
+		return nil
+	}
+
+	err := Run(ctx, func(g *Grove) error {
+		g.Go("f1", func(ctx context.Context) error {
+			return f1()
+		})
+
+		g.Go("f2", func(ctx context.Context) error {
+			return f2()
+		})
+
+		g.Go("f3", func(ctx context.Context) error {
+			return f3()
+		})
+
+		return nil
+	})
+
+	time.Sleep(100 * time.Millisecond)
+	numEnd := runtime.NumGoroutine()
+
+	if err != nil {
+		t.Errorf("expected no error, got: %v", err)
+	}
+
+	if numEnd > numStart {
+		t.Errorf("goroutine leak detected")
+	}
+}
+
+func TestIntegration_CorrectOrdering(t *testing.T) {
+	t0 := time.Now().UnixMilli()
+	ctx := context.Background()
+
+	err := Run(ctx, func(g *Grove) error {
+		g.Go("sleepy_func", func(ctx context.Context) error {
+			time.Sleep(200 * time.Millisecond)
+			return nil
+		})
+
+		return nil
+	})
+
+	t1 := time.Now().UnixMilli()
+
+	if err != nil {
+		t.Errorf("expected nil error, got: %v", err)
+	}
+	if !(t1-t0 > 200) {
+		t.Errorf("expected duration of run > 200, got: %v", t1-t0)
+	}
 }
