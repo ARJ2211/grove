@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -173,6 +174,8 @@ func (inv *InventoryService) Get(
 // main function where our http mocks will be created
 // and ran under a grove
 func main() {
+	var t0 time.Time
+
 	prodService := &ProductService{}
 	prodPrices := &PricingService{}
 	prodReviews := &ReviewsSerivce{}
@@ -186,22 +189,23 @@ func main() {
 	}
 
 	// first grove with no errors (happy path)
+	t0 = time.Now()
 	happyCtx := context.Background
 	err := grove.Run(happyCtx(), func(g *grove.Grove) error {
 		g.Go("fetch-prods", func(ctx context.Context) error {
-			return prodService.Get(false, pp, 150*time.Millisecond)
+			return prodService.Get(false, pp, d())
 		})
 
 		g.Go("fetch-prices", func(ctx context.Context) error {
-			return prodPrices.Get(false, pp, 50*time.Millisecond)
+			return prodPrices.Get(false, pp, d())
 		})
 
 		g.Go("fetch-reviews", func(ctx context.Context) error {
-			return prodReviews.Get(false, pp, 350*time.Millisecond)
+			return prodReviews.Get(false, pp, d())
 		})
 
 		g.Go("fetch-inv", func(ctx context.Context) error {
-			return prodInventory.Get(false, pp, 200*time.Millisecond)
+			return prodInventory.Get(false, pp, d())
 		})
 
 		return nil
@@ -211,19 +215,50 @@ func main() {
 		fmt.Printf("expected nill err in happy path, got: %v", err)
 		os.Exit(1)
 	}
-	fmt.Printf(
-		`
-		Happy path complete!
-		Product Page details:
-			1. Items: %v
-			2. Prices: %v
-			3. Reviews: %v
-			4. Inventory: %v
-		`, pp.Prices.productPrices,
-		pp.Prices.productPrices,
-		pp.Reviews.productReviews,
-		pp.Inventory.productInventory,
-	)
+	printProductPage(pp, time.Since(t0))
+}
+
+// function to get duration
+// where 500 <= duration <= 1000
+func d() time.Duration {
+	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	min := 500
+	max := 1000
+
+	n := rand.Intn(max-min+1) + min
+	t := time.Duration(n) * time.Millisecond
+	return t
+}
+
+// function to print the product page
+func printProductPage(pp *ProductPage, elapsed time.Duration) {
+	fmt.Printf("\nTime to complete -> %.2f sec\n\n", elapsed.Seconds())
+	fmt.Println("Happy path complete!")
+	fmt.Println("Product Page Details:")
+
+	for _, product := range pp.Products.products {
+		fmt.Printf("• %s\n", product)
+
+		// price
+		if price, ok := pp.Prices.productPrices[product]; ok {
+			fmt.Printf("   Price: $%.2f\n", price)
+		}
+
+		// inventory
+		if inv, ok := pp.Inventory.productInventory[product]; ok {
+			fmt.Printf("   Stock: %d units\n", inv)
+		}
+
+		// reviews
+		if reviews, ok := pp.Reviews.productReviews[product]; ok {
+			fmt.Println("   Reviews:")
+			for i, r := range reviews {
+				fmt.Printf("     %d. %s\n", i+1, r)
+			}
+		}
+
+		fmt.Println()
+	}
 }
 
 /* ==============================
