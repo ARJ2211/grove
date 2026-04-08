@@ -3,6 +3,7 @@ package grove
 import (
 	"context"
 	"errors"
+	"fmt"
 	"runtime"
 	"strings"
 	"testing"
@@ -464,5 +465,35 @@ func TestIntegration_CancellationTiming(t *testing.T) {
 	}
 	if t1-t0 > 5 {
 		t.Errorf("expected nil error, got: %v", err)
+	}
+}
+
+func TestIntegration_HighConcurrency(t *testing.T) {
+	ctx := context.Background()
+	volume := 10000
+
+	numStart := runtime.NumGoroutine()
+
+	err := Run(ctx, func(g *Grove) error {
+		// launch #volume of goroutines
+		for i := 0; i < volume; i++ {
+			tName := fmt.Sprintf("func_%d", i)
+			g.Go(tName, func(ctx context.Context) error {
+				return nil
+			})
+		}
+
+		return nil
+	})
+
+	time.Sleep(200 * time.Millisecond)
+	numEnd := runtime.NumGoroutine()
+
+	if err != nil {
+		t.Errorf("expected no errors, got: %v", err)
+	}
+	if numEnd > numStart {
+		t.Errorf("goroutine leak detected")
+
 	}
 }
