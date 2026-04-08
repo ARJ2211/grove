@@ -347,3 +347,17 @@ func TestRun_NestedGrove_InsideGoroutine(t *testing.T) {
 		t.Errorf("expected nested error, got: %v", err)
 	}
 }
+
+func TestContext_ContextNotNil(t *testing.T) {
+	ctx := context.Background()
+
+	_ = Run(ctx, func(g *Grove) error {
+		groveCtx := g.Context()
+
+		if groveCtx == nil {
+			t.Errorf("expected non-nil context")
+		}
+
+		return nil
+	})
+}
