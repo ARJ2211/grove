@@ -227,6 +227,7 @@ func main() {
 			return prodService.Get(false, pp, d())
 		})
 
+		// expect fetch prices to throw an error.
 		g.Go("fetch-prices", func(ctx context.Context) error {
 			return prodPrices.Get(true, pp, d())
 		})
@@ -255,10 +256,54 @@ func main() {
 		fmt.Printf("Caught unknown error, got: %v", err)
 		os.Exit(1)
 	}
+
+	// third grove with multi error (multiple error path)
+	t0 = time.Now()
+	multiErrorCtx := context.Background()
+
+	err = grove.Run(multiErrorCtx, func(g *grove.Grove) error {
+		g.Go("fetch-prods", func(ctx context.Context) error {
+			return prodService.Get(false, pp, d())
+		})
+
+		// expect fetch prices to throw an error.
+		g.Go("fetch-prices", func(ctx context.Context) error {
+			return prodPrices.Get(true, pp, d())
+		})
+
+		// expect fetch reviews to throw an error.
+		g.Go("fetch-reviews", func(ctx context.Context) error {
+			return prodReviews.Get(true, pp, d())
+		})
+
+		g.Go("fetch-inv", func(ctx context.Context) error {
+			return prodInventory.Get(false, pp, d())
+		})
+
+		return nil
+	})
+
+	var me grove.MultiError
+	if err == nil {
+		fmt.Println("expected one error, got nil")
+		os.Exit(1)
+	} else if errors.Is(err, ErrPricingSerivce) &&
+		errors.Is(err, ErrReviewSerivce) &&
+		errors.As(err, &me) {
+		fmt.Println("\n\n[CASE 3] Multi error path complete!")
+		fmt.Printf("Time to complete -> %.2f sec\n", time.Since(t0).Seconds())
+		fmt.Printf("Successfully caught multierror %v", me)
+	} else {
+		fmt.Println("Multi error path complete!")
+		fmt.Printf("Time to complete -> %.2f sec\n", time.Since(t0).Seconds())
+		fmt.Printf("Caught unknown error, got: %v", err)
+		os.Exit(1)
+	}
+
 }
 
 // function to get duration
-// where 500 <= duration <= 1000
+// where durationE[500, 1000]
 func d() time.Duration {
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	min := 500
