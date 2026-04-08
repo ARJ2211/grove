@@ -48,123 +48,163 @@ type ProductPage struct {
 
 // get the details of the product via some mock.
 func (prod *ProductService) Get(
+	ctx context.Context,
 	expectError bool,
 	pp *ProductPage,
 	latency time.Duration,
 ) error {
-	prods := []Product{
-		"apple",
-		"banana",
-		"orange",
-		"lemon",
+	select {
+	case <-ctx.Done():
+		{
+			return ctx.Err()
+		}
+	case <-time.After(latency):
+		{
+			prods := []Product{
+				"apple",
+				"banana",
+				"orange",
+				"lemon",
+			}
+
+			prod.products = prods
+			pp.Products.products = prods
+
+			// simulate doing some work
+			time.Sleep(latency)
+
+			if expectError {
+				return ErrProductService
+			}
+			return nil
+		}
 	}
-
-	prod.products = prods
-	pp.Products.products = prods
-
-	// simulate doing some work
-	time.Sleep(latency)
-
-	if expectError {
-		return ErrProductService
-	}
-	return nil
 }
 
 // get the prices of the different products via some mock.
 func (price *PricingService) Get(
+	ctx context.Context,
 	expectError bool,
 	pp *ProductPage,
 	latency time.Duration,
 ) error {
-	prices := map[Product]float32{
-		Product("apple"):  24.3,
-		Product("banana"): 14.4,
-		Product("orange"): 32.6,
-		Product("lemon"):  12.2,
+	select {
+	case <-ctx.Done():
+		{
+			return ctx.Err()
+		}
+	case <-time.After(latency):
+		{
+			prices := map[Product]float32{
+				Product("apple"):  24.3,
+				Product("banana"): 14.4,
+				Product("orange"): 32.6,
+				Product("lemon"):  12.2,
+			}
+
+			price.productPrices = prices
+			pp.Prices.productPrices = prices
+
+			// simulate doing some work
+			time.Sleep(latency)
+
+			if expectError {
+				return ErrPricingSerivce
+			}
+			return nil
+		}
 	}
-
-	price.productPrices = prices
-	pp.Prices.productPrices = prices
-
-	// simulate doing some work
-	time.Sleep(latency)
-
-	if expectError {
-		return ErrPricingSerivce
-	}
-	return nil
 }
 
 // get the reviews for the products via some mock
 func (rs *ReviewsSerivce) Get(
+	ctx context.Context,
 	expectError bool,
 	pp *ProductPage,
 	latency time.Duration,
 ) error {
-	appleReviews := Reviews([]string{
-		"Very sweet apples",
-		"Apples were crunchy",
-		"Extremely juicy",
-	})
-	bananaReviews := Reviews([]string{
-		"Yellow bananas",
-		"They were ripe",
-	})
-	orangeReviews := Reviews([]string{
-		"Good for making juices",
-		"They were bitter",
-		"My son liked them a lot",
-	})
-	lemonReviews := Reviews([]string{
-		"Very sour",
-		"I did not like them",
-		"Do not recommend",
-		"Not enough juice",
-	})
+	select {
+	case <-ctx.Done():
+		{
+			return ctx.Err()
+		}
+	case <-time.After(latency):
+		{
+			appleReviews := Reviews([]string{
+				"Very sweet apples",
+				"Apples were crunchy",
+				"Extremely juicy",
+			})
+			bananaReviews := Reviews([]string{
+				"Yellow bananas",
+				"They were ripe",
+			})
+			orangeReviews := Reviews([]string{
+				"Good for making juices",
+				"They were bitter",
+				"My son liked them a lot",
+			})
+			lemonReviews := Reviews([]string{
+				"Very sour",
+				"I did not like them",
+				"Do not recommend",
+				"Not enough juice",
+			})
 
-	prodRevs := map[Product]Reviews{
-		Product("apple"):  appleReviews,
-		Product("banana"): bananaReviews,
-		Product("orange"): orangeReviews,
-		Product("lemon"):  lemonReviews,
+			prodRevs := map[Product]Reviews{
+				Product("apple"):  appleReviews,
+				Product("banana"): bananaReviews,
+				Product("orange"): orangeReviews,
+				Product("lemon"):  lemonReviews,
+			}
+
+			rs.productReviews = prodRevs
+			pp.Reviews.productReviews = prodRevs
+
+			// simulate some work
+			time.Sleep(latency)
+
+			if expectError {
+				return ErrReviewSerivce
+			}
+			return nil
+		}
 	}
-
-	rs.productReviews = prodRevs
-	pp.Reviews.productReviews = prodRevs
-
-	// simulate some work
-	time.Sleep(latency)
-
-	if expectError {
-		return ErrReviewSerivce
-	}
-	return nil
 }
 
 // get the inventory for the products via some mock.
 func (inv *InventoryService) Get(
+	ctx context.Context,
 	expectError bool,
 	pp *ProductPage,
 	latency time.Duration,
 ) error {
-	inventory := map[Product]int{
-		Product("apple"):  5,
-		Product("orange"): 14,
-		Product("banana"): 3,
-		Product("lemon"):  7,
+	select {
+	case <-ctx.Done():
+		{
+			return ctx.Err()
+		}
+	case <-time.After(latency):
+		{
+			inventory := map[Product]int{
+				Product("apple"):  5,
+				Product("orange"): 14,
+				Product("banana"): 3,
+				Product("lemon"):  7,
+			}
+
+			inv.productInventory = inventory
+			pp.Inventory.productInventory = inventory
+
+			// simulate some work
+			time.Sleep(latency)
+
+			if expectError {
+				return ErrInventorySerivce
+			}
+			return nil
+		}
 	}
-
-	inv.productInventory = inventory
-	pp.Inventory.productInventory = inventory
-
-	// simulate some work
-	time.Sleep(latency)
-
-	if expectError {
-		return ErrInventorySerivce
-	}
-	return nil
 }
 
 /* ==============================
@@ -194,19 +234,19 @@ func main() {
 	happyCtx := context.Background
 	err := grove.Run(happyCtx(), func(g *grove.Grove) error {
 		g.Go("fetch-prods", func(ctx context.Context) error {
-			return prodService.Get(false, pp, d())
+			return prodService.Get(ctx, false, pp, d())
 		})
 
 		g.Go("fetch-prices", func(ctx context.Context) error {
-			return prodPrices.Get(false, pp, d())
+			return prodPrices.Get(ctx, false, pp, d())
 		})
 
 		g.Go("fetch-reviews", func(ctx context.Context) error {
-			return prodReviews.Get(false, pp, d())
+			return prodReviews.Get(ctx, false, pp, d())
 		})
 
 		g.Go("fetch-inv", func(ctx context.Context) error {
-			return prodInventory.Get(false, pp, d())
+			return prodInventory.Get(ctx, false, pp, d())
 		})
 
 		return nil
@@ -224,20 +264,20 @@ func main() {
 
 	err = grove.Run(oneErrorCtx, func(g *grove.Grove) error {
 		g.Go("fetch-prods", func(ctx context.Context) error {
-			return prodService.Get(false, pp, d())
+			return prodService.Get(ctx, false, pp, d())
 		})
 
 		// expect fetch prices to throw an error.
 		g.Go("fetch-prices", func(ctx context.Context) error {
-			return prodPrices.Get(true, pp, d())
+			return prodPrices.Get(ctx, true, pp, d())
 		})
 
 		g.Go("fetch-reviews", func(ctx context.Context) error {
-			return prodReviews.Get(false, pp, d())
+			return prodReviews.Get(ctx, false, pp, d())
 		})
 
 		g.Go("fetch-inv", func(ctx context.Context) error {
-			return prodInventory.Get(false, pp, d())
+			return prodInventory.Get(ctx, false, pp, d())
 		})
 
 		return nil
@@ -263,21 +303,21 @@ func main() {
 
 	err = grove.Run(multiErrorCtx, func(g *grove.Grove) error {
 		g.Go("fetch-prods", func(ctx context.Context) error {
-			return prodService.Get(false, pp, d())
+			return prodService.Get(ctx, false, pp, d())
 		})
 
 		// expect fetch prices to throw an error.
 		g.Go("fetch-prices", func(ctx context.Context) error {
-			return prodPrices.Get(true, pp, d())
+			return prodPrices.Get(ctx, true, pp, d())
 		})
 
 		// expect fetch reviews to throw an error.
 		g.Go("fetch-reviews", func(ctx context.Context) error {
-			return prodReviews.Get(true, pp, d())
+			return prodReviews.Get(ctx, true, pp, d())
 		})
 
 		g.Go("fetch-inv", func(ctx context.Context) error {
-			return prodInventory.Get(false, pp, d())
+			return prodInventory.Get(ctx, false, pp, d())
 		})
 
 		return nil
