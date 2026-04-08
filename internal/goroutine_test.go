@@ -136,6 +136,9 @@ func TestCapturePanic_PanicWithString(t *testing.T) {
 	if !strings.Contains(pe.Error(), "goroutine") {
 		t.Errorf("expected stack trace")
 	}
+	if pe.Unwrap() != nil {
+		t.Errorf("expected nil unwrap for string panic, got: %v", pe.Unwrap())
+	}
 }
 
 func TestCapturePanic_PanicWithError(t *testing.T) {
