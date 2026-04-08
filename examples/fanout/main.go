@@ -154,6 +154,16 @@ func (inv *InventoryService) Get(
 }
 
 /* ==============================
+		MAIN ENTRY POINT
+=============================== */
+
+// main function where our http mocks will be created
+// and ran under a grove
+func main() {
+
+}
+
+/* ==============================
 		ERROR DEFINITIONS
 =============================== */
 
