@@ -131,12 +131,35 @@ func (rs *ReviewsSerivce) Get(
 	return nil
 }
 
+// get the inventory for the products via some mock.
+func (inv *InventoryService) Get(
+	expectError bool,
+	pp *ProductPage,
+	latency time.Duration,
+) error {
+	pp.Inventory.productInventory = map[Product]int{
+		Product("apple"):  5,
+		Product("orange"): 14,
+		Product("banana"): 3,
+		Product("lemon"):  7,
+	}
+
+	// simulate some work
+	time.Sleep(latency)
+
+	if expectError {
+		return ErrInventorySerivce
+	}
+	return nil
+}
+
 /* ==============================
 		ERROR DEFINITIONS
 =============================== */
 
 var (
-	ErrProductService = errors.New("product service is down")
-	ErrPricingSerivce = errors.New("pricing service is down")
-	ErrReviewSerivce  = errors.New("review service is down")
+	ErrProductService   = errors.New("product service is down")
+	ErrPricingSerivce   = errors.New("pricing service is down")
+	ErrReviewSerivce    = errors.New("review service is down")
+	ErrInventorySerivce = errors.New("inventory service is down")
 )
