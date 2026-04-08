@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"os"
 	"time"
+
+	"github.com/ARJ2211/grove"
 )
 
 // simulate a product service
@@ -30,10 +35,10 @@ type InventoryService struct {
 // simulate the main product page that uses these 4 services
 // product page will collect the info from the services.
 type ProductPage struct {
-	Products    *ProductService
-	Prices      *PricingService
-	ProdReviews *ReviewsSerivce
-	Inventory   *InventoryService
+	Products  *ProductService
+	Prices    *PricingService
+	Reviews   *ReviewsSerivce
+	Inventory *InventoryService
 }
 
 /* ==============================
@@ -53,6 +58,7 @@ func (prod *ProductService) Get(
 		"lemon",
 	}
 
+	prod.products = prods
 	pp.Products.products = prods
 
 	// simulate doing some work
@@ -77,6 +83,7 @@ func (price *PricingService) Get(
 		Product("lemon"):  12.2,
 	}
 
+	price.productPrices = prices
 	pp.Prices.productPrices = prices
 
 	// simulate doing some work
@@ -115,12 +122,15 @@ func (rs *ReviewsSerivce) Get(
 		"Not enough juice",
 	})
 
-	pp.ProdReviews.productReviews = map[Product]Reviews{
+	prodRevs := map[Product]Reviews{
 		Product("apple"):  appleReviews,
 		Product("banana"): bananaReviews,
 		Product("orange"): orangeReviews,
 		Product("lemon"):  lemonReviews,
 	}
+
+	rs.productReviews = prodRevs
+	pp.Reviews.productReviews = prodRevs
 
 	// simulate some work
 	time.Sleep(latency)
@@ -137,12 +147,15 @@ func (inv *InventoryService) Get(
 	pp *ProductPage,
 	latency time.Duration,
 ) error {
-	pp.Inventory.productInventory = map[Product]int{
+	inventory := map[Product]int{
 		Product("apple"):  5,
 		Product("orange"): 14,
 		Product("banana"): 3,
 		Product("lemon"):  7,
 	}
+
+	inv.productInventory = inventory
+	pp.Inventory.productInventory = inventory
 
 	// simulate some work
 	time.Sleep(latency)
@@ -160,7 +173,57 @@ func (inv *InventoryService) Get(
 // main function where our http mocks will be created
 // and ran under a grove
 func main() {
+	prodService := &ProductService{}
+	prodPrices := &PricingService{}
+	prodReviews := &ReviewsSerivce{}
+	prodInventory := &InventoryService{}
 
+	pp := &ProductPage{
+		Products:  prodService,
+		Prices:    prodPrices,
+		Inventory: prodInventory,
+		Reviews:   prodReviews,
+	}
+
+	// first grove with no errors (happy path)
+	happyCtx := context.Background
+	err := grove.Run(happyCtx(), func(g *grove.Grove) error {
+		g.Go("fetch-prods", func(ctx context.Context) error {
+			return prodService.Get(false, pp, 150*time.Millisecond)
+		})
+
+		g.Go("fetch-prices", func(ctx context.Context) error {
+			return prodPrices.Get(false, pp, 50*time.Millisecond)
+		})
+
+		g.Go("fetch-reviews", func(ctx context.Context) error {
+			return prodReviews.Get(false, pp, 350*time.Millisecond)
+		})
+
+		g.Go("fetch-inv", func(ctx context.Context) error {
+			return prodInventory.Get(false, pp, 200*time.Millisecond)
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("expected nill err in happy path, got: %v", err)
+		os.Exit(1)
+	}
+	fmt.Printf(
+		`
+		Happy path complete!
+		Product Page details:
+			1. Items: %v
+			2. Prices: %v
+			3. Reviews: %v
+			4. Inventory: %v
+		`, pp.Prices.productPrices,
+		pp.Prices.productPrices,
+		pp.Reviews.productReviews,
+		pp.Inventory.productInventory,
+	)
 }
 
 /* ==============================
