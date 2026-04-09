@@ -340,6 +340,42 @@ func main() {
 		os.Exit(1)
 	}
 
+	// catching context error (context error path)
+	t0 = time.Now()
+	ctxErrCtx, cancel := context.WithCancel(context.Background())
+
+	err = grove.Run(ctxErrCtx, func(g *grove.Grove) error {
+		g.Go("fetch-prods", func(ctx context.Context) error {
+			return prodService.Get(ctx, false, pp, d())
+		})
+
+		g.Go("fetch-prices", func(ctx context.Context) error {
+			return prodPrices.Get(ctx, false, pp, d())
+		})
+
+		g.Go("fetch-reviews", func(ctx context.Context) error {
+			// expect grove to kill context here.
+			// simulate service going down...
+			time.Sleep(200 * time.Millisecond) // service works briefly
+			cancel()
+			return prodReviews.Get(ctx, false, pp, d())
+		})
+
+		g.Go("fetch-inv", func(ctx context.Context) error {
+			return prodInventory.Get(ctx, false, pp, d())
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		fmt.Println("expected error, got nil")
+		os.Exit(1)
+	} else {
+		fmt.Println("\n\n[CASE 4] Context error path complete!")
+		fmt.Printf("Time to complete -> %.2f sec\n", time.Since(t0).Seconds())
+		fmt.Printf("Successfully caught err %v", err)
+	}
 }
 
 // function to get duration
