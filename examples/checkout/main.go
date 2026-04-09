@@ -101,8 +101,8 @@ import (
 
 // some flags to play around with
 var (
-	PANIC_CACHE     = true // panic the cache warmup after 5 seconds
-	FAIL_SAVE_ORDER = true // fail the order saving part done in request context
+	PANIC_CACHE     = false // panic the cache warmup after 5 seconds
+	FAIL_SAVE_ORDER = false // fail the order saving part done in request context
 
 	ErrOrderNotSaved = errors.New("order not saved")
 )
