@@ -51,7 +51,7 @@ func warmupCache(expectPanic bool) error {
 	if expectPanic {
 		// if cache warmup fails, we panic!
 		time.Sleep(5 * time.Second)
-		e := errors.New("cache warmup failed!")
+		e := errors.New("cache warmup failed")
 		panic(e)
 	}
 
@@ -130,6 +130,10 @@ func checkoutHandler(serverGrove *grove.Grove) error {
 	return nil
 }
 
+/* ======================
+	RUNNING MOCK SERVER
+====================== */
+
 func main() {
 	var pe grove.PanicError
 
@@ -176,8 +180,9 @@ func main() {
 	}
 }
 
+// simple function to simulate doing
+// work in milliseconds.
 func simulateWork(d int) {
 	dur := d * int(time.Millisecond)
-	// fmt.Printf("\n[dur] %d\n", dur)
 	time.Sleep(time.Duration(dur))
 }
