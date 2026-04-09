@@ -11,7 +11,10 @@ import (
 
 // some flags to play around with
 var (
-	FAILCACHE = false // fail the cache warmup after 5 seconds
+	PANIC_CACHE     = true  // panic the cache warmup after 5 seconds
+	FAIL_SAVE_ORDER = false // fail the order saving part done in request context
+
+	ErrOrderNotSaved = errors.New("order not saved")
 )
 
 /* ======================
@@ -33,7 +36,8 @@ func healthCheck(ctx context.Context, timer *time.Timer, ticker *time.Ticker) er
 			}
 		case <-ctx.Done():
 			{
-				fmt.Println("[server] server encounted error...")
+				fmt.Println("[server] server encountered an error. " +
+					"Completing all previous goroutines")
 				return ctx.Err()
 			}
 		}
@@ -41,10 +45,10 @@ func healthCheck(ctx context.Context, timer *time.Timer, ticker *time.Ticker) er
 }
 
 // simple simulation of cache warmup for a server.
-func warmupCache(expectError bool) error {
+func warmupCache(expectPanic bool) error {
 	fmt.Println("[cache] cache is warming up...")
 
-	if expectError {
+	if expectPanic {
 		// if cache warmup fails, we panic!
 		time.Sleep(5 * time.Second)
 		e := errors.New("cache warmup failed!")
@@ -78,10 +82,18 @@ func checkoutHandler(serverGrove *grove.Grove) error {
 		// save the order in the DB
 		g.Go("save-order", func(ctx context.Context) error {
 			simulateWork(150)
-			fmt.Println(
-				"[r1 save-order] your order has been saved",
-			)
-			return nil
+			if FAIL_SAVE_ORDER {
+				fmt.Println(
+					"[r1 save-order] your order has NOT been saved",
+				)
+				return ErrOrderNotSaved
+			} else {
+				fmt.Println(
+					"[r1 save-order] your order has been saved",
+				)
+				return nil
+			}
+
 		})
 
 		return nil
@@ -95,7 +107,8 @@ func checkoutHandler(serverGrove *grove.Grove) error {
 				refund()
 			}
 		*/
-		return errors.New("[r1] error in placing the order")
+		fmt.Println("[req] error occured - any money will be refunded")
+		return reqErr
 	}
 
 	// we fire the background job that needs to be done in the servers
@@ -106,6 +119,9 @@ func checkoutHandler(serverGrove *grove.Grove) error {
 		return nil
 	})
 	serverGrove.Go("update-inventory", func(ctx context.Context) error {
+		// when cache error is set to true, even though the cache fails at
+		// t = 5 secs, since we are not checking the context, the goroutine
+		// still executes until completion!
 		simulateWork(10000)
 		fmt.Println("[update-inventory] inventory updated")
 		return nil
@@ -115,6 +131,8 @@ func checkoutHandler(serverGrove *grove.Grove) error {
 }
 
 func main() {
+	var pe grove.PanicError
+
 	serverCtx := context.Background()
 
 	timer := time.NewTimer(45 * time.Second)
@@ -131,7 +149,7 @@ func main() {
 
 		// background task 2: cache warmup
 		serverGrove.Go("cache-warmup", func(ctx context.Context) error {
-			err := warmupCache(FAILCACHE) // <- set true or false to simulate cache crash
+			err := warmupCache(PANIC_CACHE) // <- set true or false to simulate cache crash
 			return err
 		})
 
@@ -148,8 +166,13 @@ func main() {
 		return nil
 	})
 
+	if errors.As(serverErr, &pe) {
+		fmt.Println("\n\nYour server crashed but all " +
+			"requests were served before crashing",
+		)
+	}
 	if serverErr != nil {
-		fmt.Printf("SERVER CRASHED with error: %v", serverErr.Error())
+		fmt.Println("[server] server encounted error: ", serverErr)
 	}
 }
 
