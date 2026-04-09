@@ -57,6 +57,63 @@ func warmupCache(expectError bool) error {
 	return nil
 }
 
+/* ======================
+	REQUEST HANDLERS
+====================== */
+
+// checkout request simulation.
+func checkoutHandler(serverGrove *grove.Grove) error {
+	reqCtx := context.Background()
+
+	reqErr := grove.Run(reqCtx, func(g *grove.Grove) error {
+		// charge the users card
+		g.Go("charge-card", func(ctx context.Context) error {
+			simulateWork(200)
+			fmt.Println(
+				"[r1 charge-card] your card ending with xxxx has been charged",
+			)
+			return nil
+		})
+
+		// save the order in the DB
+		g.Go("save-order", func(ctx context.Context) error {
+			simulateWork(150)
+			fmt.Println(
+				"[r1 save-order] your order has been saved",
+			)
+			return nil
+		})
+
+		return nil
+	})
+
+	if reqErr != nil {
+		// catch any error that happened with the card
+		// and refund the money.
+		/*
+			if errors.As(r1Err != ErrFaultyTransaction) {
+				refund()
+			}
+		*/
+		return errors.New("[r1] error in placing the order")
+	}
+
+	// we fire the background job that needs to be done in the servers
+	// context since these can be long lived tasks.
+	serverGrove.Go("send-email", func(ctx context.Context) error {
+		simulateWork(5000)
+		fmt.Println("[send-email] email sent to user")
+		return nil
+	})
+	serverGrove.Go("update-inventory", func(ctx context.Context) error {
+		simulateWork(10000)
+		fmt.Println("[update-inventory] inventory updated")
+		return nil
+	})
+
+	return nil
+}
+
 func main() {
 	serverCtx := context.Background()
 
@@ -78,8 +135,15 @@ func main() {
 			return err
 		})
 
-		// request: this handles the checkout process
-		// checkoutProcess()
+		// inner grove that handles different requests
+		// request 1: checkout request
+		serverGrove.Go("checkout-req", func(ctx context.Context) error {
+			err := checkoutHandler(serverGrove)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 
 		return nil
 	})
@@ -87,4 +151,10 @@ func main() {
 	if serverErr != nil {
 		fmt.Printf("SERVER CRASHED with error: %v", serverErr.Error())
 	}
+}
+
+func simulateWork(d int) {
+	dur := d * int(time.Millisecond)
+	// fmt.Printf("\n[dur] %d\n", dur)
+	time.Sleep(time.Duration(dur))
 }
