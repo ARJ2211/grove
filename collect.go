@@ -38,3 +38,38 @@ func (tg *TypedGrove[T]) Submit(
 		return nil
 	})
 }
+
+// collect all the T values from that grove
+// and return them along with the errors
+func Collect[T any](ctx context.Context, fn func(*TypedGrove[T]) error) ([]T, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	// create Grove and TypedGrove
+	g := Grove{
+		ctx:    ctx,
+		cancel: cancel,
+		closed: false,
+		errs:   []error{},
+	}
+
+	tg := TypedGrove[T]{
+		grove:   &g,
+		results: []T{},
+	}
+
+	// run the gorutines that the user has defined
+	if err := fn(&tg); err != nil {
+		g.errs = append(g.errs, err)
+	}
+
+	// wait for the grove to finish collecting all errors and results
+	g.wg.Wait()
+
+	// close the grove
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+
+	return tg.results, Join(g.errs...)
+}
