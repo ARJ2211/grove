@@ -11,6 +11,7 @@ type TypedGrove[T any] struct {
 	grove   *Grove     // which scope or grove are the results in
 	mu      sync.Mutex // locking mech
 	results []T        // the results of the function
+	found   bool       // detect if there is a first result
 }
 
 // this function will call grove.Go which will
@@ -56,6 +57,7 @@ func Collect[T any](ctx context.Context, fn func(*TypedGrove[T]) error) ([]T, er
 	tg := TypedGrove[T]{
 		grove:   &g,
 		results: []T{},
+		found:   false,
 	}
 
 	// run the gorutines that the user has defined
@@ -74,15 +76,33 @@ func Collect[T any](ctx context.Context, fn func(*TypedGrove[T]) error) ([]T, er
 	return tg.results, Join(g.errs...)
 }
 
-// collect only the FIRST successful value
-// and any errors associated with all the
-// goroutines.
-func First[T any](ctx context.Context, fn func(*TypedGrove[T]) error) (T, error) {
-
-}
-
 // run the goroutines but also cancel the
 // context on successful execution
-func (tg *TypedGrove[T]) SubmitFirst(name string, fn func(ctx context.Context) (T, error)) {
+func (tg *TypedGrove[T]) SubmitFirst(
+	name string,
+	fn func(ctx context.Context) (T, error),
+) {
+	tg.grove.Go(name, func(ctx context.Context) error {
+		var result T
+		var err error
 
+		// call the function
+		result, err = fn(ctx)
+
+		if err != nil {
+			return err
+		}
+
+		tg.mu.Lock()
+		defer tg.mu.Unlock()
+
+		// if there already is a result, then skip it
+		if !tg.found {
+			tg.found = true
+			tg.results = append(tg.results, result)
+			tg.grove.cancel(nil) // cancel the context
+		}
+
+		return nil
+	})
 }
