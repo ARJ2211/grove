@@ -73,3 +73,16 @@ func Collect[T any](ctx context.Context, fn func(*TypedGrove[T]) error) ([]T, er
 
 	return tg.results, Join(g.errs...)
 }
+
+// collect only the FIRST successful value
+// and any errors associated with all the
+// goroutines.
+func First[T any](ctx context.Context, fn func(*TypedGrove[T]) error) (T, error) {
+
+}
+
+// run the goroutines but also cancel the
+// context on successful execution
+func (tg *TypedGrove[T]) SubmitFirst(name string, fn func(ctx context.Context) (T, error)) {
+
+}
