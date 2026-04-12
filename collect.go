@@ -2,6 +2,7 @@ package grove
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
 
@@ -76,6 +77,45 @@ func Collect[T any](ctx context.Context, fn func(*TypedGrove[T]) error) ([]T, er
 	return tg.results, Join(g.errs...)
 }
 
+// collect only the FIRST successful value
+// and any errors associated with all the
+// goroutines.
+func First[T any](ctx context.Context, fn func(*TypedGrove[T]) error) (T, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	g := Grove{
+		ctx:    ctx,
+		cancel: cancel,
+		closed: false,
+		errs:   []error{},
+	}
+
+	tg := TypedGrove[T]{
+		grove:   &g,
+		results: []T{},
+		found:   false,
+	}
+
+	if err := fn(&tg); err != nil {
+		g.errs = append(g.errs, err)
+	}
+
+	// wait for the grove to finish collecting all errors and results
+	g.wg.Wait()
+
+	// close the grove
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+
+	if len(tg.results) > 0 {
+		return tg.results[0], Join(g.errs...)
+	}
+
+	return *new(T), nil
+}
+
 // run the goroutines but also cancel the
 // context on successful execution
 func (tg *TypedGrove[T]) SubmitFirst(
@@ -88,6 +128,13 @@ func (tg *TypedGrove[T]) SubmitFirst(
 
 		// call the function
 		result, err = fn(ctx)
+
+		// if context is cancelled, which means
+		// there was either a panic or a result
+		// was found, return early
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
 
 		if err != nil {
 			return err
