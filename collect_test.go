@@ -271,6 +271,7 @@ func TestRace_ErrorFirst(t *testing.T) {
 		// run the fastest function second
 		tg.SubmitRace("fast", func(ctx context.Context) (T, error) {
 			res, err := f1()
+
 			if err != nil {
 				return *new(T), err
 			}

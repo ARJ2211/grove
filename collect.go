@@ -193,7 +193,8 @@ func Race[T any](ctx context.Context, fn func(tg *TypedGrove[T]) error) (T, erro
 		return tg.results[0], Join(g.errs...)
 	}
 
-	return *new(T), nil
+	// if no result, means it was an error
+	return *new(T), g.errs[0]
 }
 
 // run a task with a race, if an error or a result
