@@ -249,6 +249,39 @@ func TestFirst_AllFail(t *testing.T) {
 	}
 }
 
+func TestFirst_ContextCancelled(t *testing.T) {
+	type T any
+	ctx := context.Background()
+	e := errors.New("context cancelled")
+
+	res, err := First(ctx, func(tg *TypedGrove[T]) error {
+		// this function will cancel the context
+		tg.SubmitFirst("cancel-context", func(ctx context.Context) (T, error) {
+			return *new(T), e
+		})
+
+		// this function should not run, will not have context in err chain
+		tg.SubmitFirst("context-cancelled", func(ctx context.Context) (T, error) {
+			select {
+			case <-ctx.Done():
+				return *new(T), ctx.Err()
+			case <-time.After(1 * time.Second):
+				return "something", nil
+			}
+
+		})
+
+		return nil
+	})
+
+	if res != nil {
+		t.Errorf("expected no res, got: %v", res)
+	}
+	if errors.Is(err, context.Canceled) {
+		t.Errorf("expected err chain to not have context.Canceled")
+	}
+}
+
 func TestRace_HappyPath(t *testing.T) {
 	type T any
 	ctx := context.Background()
