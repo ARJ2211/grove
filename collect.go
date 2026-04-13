@@ -113,7 +113,7 @@ func First[T any](ctx context.Context, fn func(*TypedGrove[T]) error) (T, error)
 		return tg.results[0], Join(g.errs...)
 	}
 
-	return *new(T), nil
+	return *new(T), Join(g.errs...)
 }
 
 // run the goroutines but also cancel the
