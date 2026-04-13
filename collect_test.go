@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 )
 
 func TestCollect_HappyPath(t *testing.T) {
@@ -78,5 +79,63 @@ func TestCollect_OneFails(t *testing.T) {
 	}
 	if !errors.Is(err, e) {
 		t.Errorf("expected 'expected fail.', got: %v", err)
+	}
+}
+
+func TestFirst_HappyPath(t *testing.T) {
+	type T any
+	ctx := context.Background()
+
+	// random user defined function
+	f := func(a, b int) int {
+		return a + b
+	}
+
+	res, err := First(ctx, func(tg *TypedGrove[T]) error {
+		// only one goroutine
+		tg.SubmitFirst("func", func(ctx context.Context) (T, error) {
+			return f(2, 3), nil
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		t.Errorf("expected nil err, got: %v", err)
+	}
+	if res != 5 {
+		t.Errorf("expected 5, got: %d", res)
+	}
+}
+
+func TestCollect_MultiRunHappyPath(t *testing.T) {
+	type T any
+	ctx := context.Background()
+
+	// random user defined function
+	f := func(a, b int) int {
+		time.Sleep(1 * time.Second)
+		return a + b
+	}
+
+	numProc := 10000
+
+	res, err := First(ctx, func(tg *TypedGrove[T]) error {
+		// launch multiple but expect only one value stored
+		for i := 0; i < numProc; i++ {
+			io := i
+			tg.SubmitFirst("task", func(ctx context.Context) (T, error) {
+				return f(io, 10), nil
+			})
+		}
+
+		return nil
+	})
+
+	if res == nil {
+		t.Error("expected some res value")
+	}
+	if err != nil {
+		t.Errorf("expected nil error, got: %v", err)
 	}
 }
