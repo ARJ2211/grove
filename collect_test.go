@@ -82,6 +82,23 @@ func TestCollect_OneFails(t *testing.T) {
 	}
 }
 
+func TestCollect_FnReturnsError(t *testing.T) {
+	type T any
+	ctx := context.Background()
+	e := errors.New("setup function error")
+
+	res, err := Collect(ctx, func(tg *TypedGrove[T]) error {
+		return e
+	})
+
+	if len(res) != 0 {
+		t.Errorf("expect 0 res, got: %v", res)
+	}
+	if !errors.Is(err, e) {
+		t.Errorf("expected setup error, got: %v", err)
+	}
+}
+
 func TestFirst_HappyPath(t *testing.T) {
 	type T any
 	ctx := context.Background()
