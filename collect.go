@@ -153,3 +153,41 @@ func (tg *TypedGrove[T]) SubmitFirst(
 		return nil
 	})
 }
+
+// this will returns the FIRST successfull OR
+// unsuccessful task. This will return the first
+// task that either has a result or an error.
+func Race[T any](ctx context.Context, fn func(tg *TypedGrove[T]) error) (T, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	// create grove
+	g := Grove{
+		ctx:    ctx,
+		cancel: cancel,
+		closed: false,
+		errs:   []error{},
+	}
+
+	// create typed grove
+	tg := TypedGrove[T]{
+		grove:   &g,
+		results: []T{},
+		found:   false,
+	}
+
+	// wait for the grove to finish collecting all errors and results
+	// to prevent any goroutine leaks
+	g.wg.Wait()
+
+	// close the grove
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+
+	if len(tg.results) > 0 {
+		return tg.results[0], Join(g.errs...)
+	}
+
+	return *new(T), nil
+}
