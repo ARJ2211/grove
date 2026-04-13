@@ -176,6 +176,13 @@ func Race[T any](ctx context.Context, fn func(tg *TypedGrove[T]) error) (T, erro
 		found:   false,
 	}
 
+	if err := fn(&tg); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			g.errs = append(g.errs, err)
+		}
+
+	}
+
 	// wait for the grove to finish collecting all errors and results
 	// to prevent any goroutine leaks
 	g.wg.Wait()
