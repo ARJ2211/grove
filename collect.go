@@ -194,6 +194,16 @@ func Race[T any](ctx context.Context, fn func(tg *TypedGrove[T]) error) (T, erro
 	}
 
 	// if no result, means it was an error
+	// there can be two cases:
+	if len(g.errs) == 0 {
+		// case 1: no errors means that the
+		// context was cancelled before
+		// any functions could run
+		return *new(T), ctx.Err()
+	}
+	// case 2: there is only 1
+	// error which was the first
+	// error it encountered.
 	return *new(T), g.errs[0]
 }
 
