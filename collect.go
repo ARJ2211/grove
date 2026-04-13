@@ -177,10 +177,7 @@ func Race[T any](ctx context.Context, fn func(tg *TypedGrove[T]) error) (T, erro
 	}
 
 	if err := fn(&tg); err != nil {
-		if !errors.Is(err, context.Canceled) {
-			g.errs = append(g.errs, err)
-		}
-
+		g.errs = append(g.errs, err)
 	}
 
 	// wait for the grove to finish collecting all errors and results
@@ -197,4 +194,47 @@ func Race[T any](ctx context.Context, fn func(tg *TypedGrove[T]) error) (T, erro
 	}
 
 	return *new(T), nil
+}
+
+// run a task with a race, if an error or a result
+// is found, close the context for that grove
+func (tg *TypedGrove[T]) SubmitRace(
+	name string,
+	fn func(ctx context.Context) (T, error),
+) {
+	tg.grove.Go(name, func(ctx context.Context) error {
+		var result T
+		var err error
+
+		// create a defer close so that
+		// we can close the context when there is
+		// an error or success in the races.
+		defer func() {
+			tg.mu.Lock()
+			defer tg.mu.Unlock()
+
+			if !tg.found {
+				tg.found = true
+				tg.results = append(tg.results, result)
+				tg.grove.cancel(nil) // cancel the context
+			}
+		}()
+
+		// call the function
+		result, err = fn(ctx)
+
+		// if context is cancelled, which means
+		// there was either a panic or a result
+		// was found, return early. We also
+		// set found to true
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
