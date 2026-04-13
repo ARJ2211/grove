@@ -191,3 +191,102 @@ func TestCollect_MultiErrorOneSuccess(t *testing.T) {
 		t.Errorf("expected result 430, got: %d", res)
 	}
 }
+
+func TestRace_HappyPath(t *testing.T) {
+	type T any
+	ctx := context.Background()
+
+	// define 3 functions where f1 is fastest
+	f1 := func() string {
+		return "fastest"
+	}
+
+	f2 := func() string {
+		time.Sleep(100 * time.Millisecond)
+		return "slow"
+	}
+
+	f3 := func() string {
+		time.Sleep(100 * time.Millisecond)
+		return "slow"
+	}
+
+	res, err := Race(ctx, func(tg *TypedGrove[T]) error {
+
+		// run the slowest functions first
+		tg.SubmitRace("slow1", func(ctx context.Context) (T, error) {
+			return f2(), nil
+		})
+		tg.SubmitRace("slow2", func(ctx context.Context) (T, error) {
+			return f3(), nil
+		})
+
+		// run the fastest function second
+		tg.SubmitRace("fast", func(ctx context.Context) (T, error) {
+			return f1(), nil
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		t.Errorf("expected nil error, got: %v", err)
+	}
+	if res != "fastest" {
+		t.Errorf("expected fastest task first")
+	}
+}
+
+func TestRace_ErrorFirst(t *testing.T) {
+	type T any
+	ctx := context.Background()
+	e := errors.New("fastest error")
+
+	// define 3 functions where f1 is fastest
+	// and returns an error
+	f1 := func() (string, error) {
+		return "", e
+	}
+
+	f2 := func() string {
+		time.Sleep(100 * time.Millisecond)
+		return "slow"
+	}
+
+	f3 := func() string {
+		time.Sleep(100 * time.Millisecond)
+		return "slow"
+	}
+
+	res, err := Race(ctx, func(tg *TypedGrove[T]) error {
+
+		// run the slowest functions first
+		tg.SubmitRace("slow1", func(ctx context.Context) (T, error) {
+			return f2(), nil
+		})
+		tg.SubmitRace("slow2", func(ctx context.Context) (T, error) {
+			return f3(), nil
+		})
+
+		// run the fastest function second
+		tg.SubmitRace("fast", func(ctx context.Context) (T, error) {
+			res, err := f1()
+			if err != nil {
+				return *new(T), err
+			}
+			return res, nil
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected err, got nil")
+	}
+	if res != nil {
+		t.Errorf("expected no res, got: %v", res)
+	}
+	if !errors.Is(err, e) {
+		t.Errorf("expected 'fastest error', got: %v", err)
+	}
+}
