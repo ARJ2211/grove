@@ -398,3 +398,39 @@ func TestRace_ErrorFirst(t *testing.T) {
 		t.Errorf("expected 'fastest error', got: %v", err)
 	}
 }
+
+func TestRace_ContextCanceledFound(t *testing.T) {
+	type T any
+	ctx := context.Background()
+	ctxError := errors.New("context cancelled on purpose")
+
+	numProcs := 1000
+
+	res, err := Race(ctx, func(tg *TypedGrove[T]) error {
+		// cancel the parent context first
+		// so that all goroutines flood the
+		// context.Cancelled block.
+		tg.grove.cancel(ctxError)
+
+		// now try to race multiple goroutines
+		for i := 0; i < numProcs; i++ {
+			ci := i
+			name := fmt.Sprintf("func_%d", ci)
+			tg.SubmitRace(name, func(ctx context.Context) (T, error) {
+				select {
+				case <-ctx.Done():
+					return *new(T), ctx.Err()
+				default:
+					return fmt.Sprintf("completed %d", ci), nil
+				}
+			})
+		}
+
+		return nil
+	})
+
+	if res != nil {
+		t.Errorf("expected nil res, got: %v", res)
+	}
+	t.Log(err)
+}
