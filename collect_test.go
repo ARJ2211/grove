@@ -17,7 +17,7 @@ func TestCollect_HappyPath(t *testing.T) {
 	}
 
 	res, err := Collect(ctx, func(tg *TypedGrove[T]) error {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 100; i++ {
 			io := i
 			tg.Submit("add", func(ctx context.Context) (T, error) {
 				r := add(io, 2)
@@ -31,10 +31,9 @@ func TestCollect_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected nil error, got: %v", err)
 	}
-	if len(res) != 10 {
-		t.Errorf("expected 10 return values, got: %d", len(res))
+	if len(res) != 100 {
+		t.Errorf("expected 100 return values, got: %d", len(res))
 	}
-	t.Log(res)
 }
 
 func TestCollect_OneFails(t *testing.T) {
