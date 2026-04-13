@@ -3,6 +3,7 @@ package grove
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -99,32 +100,6 @@ func TestCollect_FnReturnsError(t *testing.T) {
 	}
 }
 
-func TestFirst_HappyPath(t *testing.T) {
-	type T any
-	ctx := context.Background()
-
-	// random user defined function
-	f := func(a, b int) int {
-		return a + b
-	}
-
-	res, err := First(ctx, func(tg *TypedGrove[T]) error {
-		// only one goroutine
-		tg.SubmitFirst("func", func(ctx context.Context) (T, error) {
-			return f(2, 3), nil
-		})
-
-		return nil
-	})
-
-	if err != nil {
-		t.Errorf("expected nil err, got: %v", err)
-	}
-	if res != 5 {
-		t.Errorf("expected 5, got: %d", res)
-	}
-}
-
 func TestCollect_MultiRunHappyPath(t *testing.T) {
 	type T any
 	ctx := context.Background()
@@ -154,6 +129,71 @@ func TestCollect_MultiRunHappyPath(t *testing.T) {
 	}
 	if err != nil {
 		t.Errorf("expected nil error, got: %v", err)
+	}
+}
+
+func TestFirst_HappyPath(t *testing.T) {
+	type T any
+	ctx := context.Background()
+
+	// random user defined function
+	f := func(a, b int) int {
+		return a + b
+	}
+
+	res, err := First(ctx, func(tg *TypedGrove[T]) error {
+		// only one goroutine
+		tg.SubmitFirst("func", func(ctx context.Context) (T, error) {
+			return f(2, 3), nil
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		t.Errorf("expected nil err, got: %v", err)
+	}
+	if res != 5 {
+		t.Errorf("expected 5, got: %d", res)
+	}
+}
+
+func TestFirst_AllFail(t *testing.T) {
+	type T any
+	ctx := context.Background()
+	expectedErrors := []error{}
+
+	numProcs := 10
+	for i := 0; i < numProcs; i++ {
+		expectedErrors = append(
+			expectedErrors, fmt.Errorf("func_%d failed", i),
+		)
+	}
+
+	res, err := First(ctx, func(tg *TypedGrove[T]) error {
+		// all the errors fail
+		for i := 0; i < numProcs; i++ {
+			ci := i
+			name := fmt.Sprintf("func_%d", ci)
+			tg.SubmitFirst(name, func(ctx context.Context) (T, error) {
+				return *new(T), expectedErrors[ci]
+			})
+		}
+
+		return nil
+	})
+
+	if res != nil {
+		t.Errorf("expected all errors, got: %v", res)
+	}
+	if err == nil {
+		t.Error("expected err, got nil")
+	}
+
+	for i := 0; i < numProcs; i++ {
+		if !errors.Is(err, expectedErrors[i]) {
+			t.Errorf("expected err_%d, not found in error chain", i)
+		}
 	}
 }
 
