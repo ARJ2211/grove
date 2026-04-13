@@ -196,29 +196,29 @@ func TestRace_HappyPath(t *testing.T) {
 	type T any
 	ctx := context.Background()
 
-	// define 3 functions where f1 is fastest
+	// define func where f1 is fastest
 	f1 := func() string {
 		return "fastest"
-	}
-
-	f2 := func() string {
-		time.Sleep(100 * time.Millisecond)
-		return "slow"
-	}
-
-	f3 := func() string {
-		time.Sleep(100 * time.Millisecond)
-		return "slow"
 	}
 
 	res, err := Race(ctx, func(tg *TypedGrove[T]) error {
 
 		// run the slowest functions first
 		tg.SubmitRace("slow1", func(ctx context.Context) (T, error) {
-			return f2(), nil
+			select {
+			case <-ctx.Done():
+				return *new(T), ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				return "slow", nil
+			}
 		})
 		tg.SubmitRace("slow2", func(ctx context.Context) (T, error) {
-			return f3(), nil
+			select {
+			case <-ctx.Done():
+				return *new(T), ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				return "slow", nil
+			}
 		})
 
 		// run the fastest function second
@@ -249,24 +249,24 @@ func TestRace_ErrorFirst(t *testing.T) {
 		return "", e
 	}
 
-	f2 := func() string {
-		time.Sleep(100 * time.Millisecond)
-		return "slow"
-	}
-
-	f3 := func() string {
-		time.Sleep(100 * time.Millisecond)
-		return "slow"
-	}
-
 	res, err := Race(ctx, func(tg *TypedGrove[T]) error {
 
 		// run the slowest functions first
 		tg.SubmitRace("slow1", func(ctx context.Context) (T, error) {
-			return f2(), nil
+			select {
+			case <-ctx.Done():
+				return *new(T), ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				return "slow", nil
+			}
 		})
 		tg.SubmitRace("slow2", func(ctx context.Context) (T, error) {
-			return f3(), nil
+			select {
+			case <-ctx.Done():
+				return *new(T), ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				return "slow", nil
+			}
 		})
 
 		// run the fastest function second
