@@ -139,3 +139,55 @@ func TestCollect_MultiRunHappyPath(t *testing.T) {
 		t.Errorf("expected nil error, got: %v", err)
 	}
 }
+
+func TestCollect_MultiErrorOneSuccess(t *testing.T) {
+	type T any
+	var me MultiError
+	ctx := context.Background()
+	e := errors.New("expected error.")
+
+	// random user defined function
+	f := func(a, b int, expectError bool) (int, error) {
+		if expectError {
+			return 0, e
+		}
+		return a + b, nil
+	}
+
+	numProcs := 10000
+	res, err := First(ctx, func(tg *TypedGrove[T]) error {
+		for j := 0; j < numProcs; j++ {
+			// prevent race
+			i := j
+
+			// success path
+			if i == 420 {
+				tg.SubmitFirst("func", func(ctx context.Context) (T, error) {
+					r, err := f(i, 10, false)
+					return r, err
+				})
+			}
+
+			// error path
+			tg.SubmitFirst("func-fail", func(ctx context.Context) (T, error) {
+				r, err := f(i, 10, true)
+				return r, err
+			})
+		}
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected err, got nil")
+	}
+	if !errors.Is(err, e) {
+		t.Errorf("expected 'expected error', got: %v", err)
+	}
+	if !errors.As(err, &me) {
+		t.Errorf("expected multi-error, got: %v", err)
+	}
+	if res != 430 {
+		t.Errorf("expected result 430, got: %d", res)
+	}
+}
