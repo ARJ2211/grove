@@ -206,20 +206,6 @@ func (tg *TypedGrove[T]) SubmitRace(
 		var result T
 		var err error
 
-		// create a defer close so that
-		// we can close the context when there is
-		// an error or success in the races.
-		defer func() {
-			tg.mu.Lock()
-			defer tg.mu.Unlock()
-
-			if !tg.found {
-				tg.found = true
-				tg.results = append(tg.results, result)
-				tg.grove.cancel(nil) // cancel the context
-			}
-		}()
-
 		// call the function
 		result, err = fn(ctx)
 
@@ -228,13 +214,39 @@ func (tg *TypedGrove[T]) SubmitRace(
 		// was found, return early. We also
 		// set found to true
 		if errors.Is(err, context.Canceled) {
+			tg.mu.Lock()
+			defer tg.mu.Unlock()
+
+			if !tg.found {
+				tg.found = true
+				tg.grove.cancel(nil) // cancel the context
+			}
 			return nil
 		}
 
+		// even if there is an error, close
+		// the context. Return the first
+		// result irrespective of succ or fail.
 		if err != nil {
+			tg.mu.Lock()
+			defer tg.mu.Unlock()
+
+			if !tg.found {
+				tg.found = true
+				tg.grove.cancel(nil) // cancel the context
+			}
 			return err
 		}
 
+		// in happy path, append the result
+		tg.mu.Lock()
+		defer tg.mu.Unlock()
+
+		if !tg.found {
+			tg.found = true
+			tg.results = append(tg.results, result)
+			tg.grove.cancel(nil) // cancel the context
+		}
 		return nil
 	})
 }
