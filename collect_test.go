@@ -166,13 +166,13 @@ func TestCollect_MultiErrorOneSuccess(t *testing.T) {
 					r, err := f(i, 10, false)
 					return r, err
 				})
+			} else {
+				// error path
+				tg.SubmitFirst("func-fail", func(ctx context.Context) (T, error) {
+					r, err := f(i, 10, true)
+					return r, err
+				})
 			}
-
-			// error path
-			tg.SubmitFirst("func-fail", func(ctx context.Context) (T, error) {
-				r, err := f(i, 10, true)
-				return r, err
-			})
 		}
 
 		return nil
