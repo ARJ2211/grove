@@ -282,6 +282,22 @@ func TestFirst_ContextCancelled(t *testing.T) {
 	}
 }
 
+func TestFirst_SetupError(t *testing.T) {
+	type T any
+	ctx := context.Background()
+
+	res, err := First(ctx, func(tg *TypedGrove[T]) error {
+		return errors.New("expected error")
+	})
+
+	if res != nil {
+		t.Errorf("expected nil res, got: %v", res)
+	}
+	if err == nil {
+		t.Error("expected err, got nil")
+	}
+}
+
 func TestRace_HappyPath(t *testing.T) {
 	type T any
 	ctx := context.Background()
