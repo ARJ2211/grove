@@ -58,17 +58,18 @@ func (s *Scope) Go(name string, fn func(ctx context.Context) error) {
 
 	if !s.deadline.IsZero() {
 		derivedCtx, cancel = context.WithDeadline(g.ctx, s.deadline)
-		defer cancel()
 	} else {
 		derivedCtx, cancel = context.WithTimeout(g.ctx, s.timeout)
-		defer cancel()
 	}
 
 	// run the go function under the derived contexts
 	// we do not cancel the scope context when there is
 	// an error within a deadline or timeout scope
 	go func() {
-		defer g.wg.Done()
+		defer func() {
+			g.wg.Done()
+			cancel()
+		}()
 		err := internal.CapturePanic(func() error { return fn(derivedCtx) })
 
 		if err != nil {
