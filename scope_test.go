@@ -24,3 +24,22 @@ func TestScope_TimeoutTaskCompletesInTime(t *testing.T) {
 		t.Errorf("expected nil error, got: %v", err)
 	}
 }
+
+func TestScope_TimeoutTaskExceedsTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	err := Run(ctx, func(g *Grove) error {
+		// create a scope of 50 ms timeout
+		scope := g.WithTimeout(50 * time.Millisecond)
+		scope.Go("task-100ms", func(ctx context.Context) error {
+			time.Sleep(100 * time.Millisecond)
+			return nil
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected err, got: %v", err)
+	}
+}
