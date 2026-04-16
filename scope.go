@@ -18,12 +18,20 @@ type Scope struct {
 
 // constructor to set timeout on the scope
 func (g *Grove) WithTimeout(d time.Duration) *Scope {
-	return nil
+	return &Scope{
+		grove:    g,
+		timeout:  d,
+		deadline: time.Time{},
+	}
 }
 
 // costructor to set deadline on the scope
 func (g *Grove) WithDeadline(t time.Time) *Scope {
-	return nil
+	return &Scope{
+		grove:    g,
+		timeout:  0,
+		deadline: t,
+	}
 }
 
 // run the functions under the scope
