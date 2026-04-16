@@ -2,6 +2,7 @@ package grove
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -53,5 +54,67 @@ func TestScope_TimeoutTaskExceedsTimeout(t *testing.T) {
 	}
 	if err != context.DeadlineExceeded {
 		t.Errorf("expected context deadline exceeded err, got: %v", err)
+	}
+}
+
+func TestScope_TimeoutDoesNotCancelSiblings(t *testing.T) {
+	ctx := context.Background()
+
+	// these errors should not be in the error chain
+	// will be called when the context deadline has passed
+	// but we do not cancel the context in a scope
+	e1 := errors.New("normal task 1 failed")
+	e2 := errors.New("normal task 2 failed")
+	e3 := errors.New("normal task 3 failed")
+
+	err := Run(ctx, func(g *Grove) error {
+		scope := g.WithTimeout(100 * time.Millisecond)
+		scope.Go("long-task", func(ctx context.Context) error {
+			{
+				// wait till done channel is triggered
+				<-ctx.Done()
+				return ctx.Err()
+			}
+		})
+
+		// these tasks clearly run AFTER the scoped context
+		// has exceeded its deadline but we do not cancel
+		// the parent context in that case
+		g.Go("normal-task1", func(ctx context.Context) error {
+			select {
+			case <-time.After(110 * time.Millisecond):
+				return nil
+			case <-ctx.Done():
+				return e1
+			}
+		})
+		g.Go("normal-task2", func(ctx context.Context) error {
+			select {
+			case <-time.After(110 * time.Millisecond):
+				return nil
+			case <-ctx.Done():
+				return e2
+			}
+		})
+		g.Go("normal-task3", func(ctx context.Context) error {
+			select {
+			case <-time.After(110 * time.Millisecond):
+				return nil
+			case <-ctx.Done():
+				return e3
+			}
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected err, got nil")
+	}
+	if err != context.DeadlineExceeded {
+		t.Errorf("expected deadline exceeded err, got: %v", err)
+	}
+	if errors.Is(err, e1) || errors.Is(err, e2) || errors.Is(err, e3) {
+		t.Errorf("expected e1, e2, e3 not in chain, got: %v", err)
 	}
 }
