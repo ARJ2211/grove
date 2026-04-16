@@ -51,5 +51,7 @@ func TestScope_TimeoutTaskExceedsTimeout(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected err, got: %v", err)
 	}
-
+	if err != context.DeadlineExceeded {
+		t.Errorf("expected context deadline exceeded err, got: %v", err)
+	}
 }
