@@ -118,3 +118,47 @@ func TestScope_TimeoutDoesNotCancelSiblings(t *testing.T) {
 		t.Errorf("expected e1, e2, e3 not in chain, got: %v", err)
 	}
 }
+
+func TestScope_TwoTasksWithDifferentTimeouts(t *testing.T) {
+	var me MultiError
+	ctx := context.Background()
+
+	ctxE := errors.New("parent context cancelled")
+
+	err := Run(ctx, func(g *Grove) error {
+		// scope 1 (50 ms)
+		scope1 := g.WithTimeout(50 * time.Millisecond)
+		scope1.Go("long-task-scope1", func(ctx context.Context) error {
+			<-ctx.Done()
+			return ctx.Err()
+		})
+
+		// scope 2 (30 ms)
+		scope2 := g.WithTimeout(30 * time.Millisecond)
+		scope2.Go("long-task-scope2", func(ctx context.Context) error {
+			<-ctx.Done()
+			return ctx.Err()
+		})
+
+		g.Go("normal-task", func(ctx context.Context) error {
+			select {
+			case <-time.After(100 * time.Millisecond):
+				return nil
+			case <-ctx.Done():
+				return ctxE
+			}
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	if !errors.As(err, &me) {
+		t.Errorf("expected multierror, got: %v", err)
+	}
+	if errors.Is(err, ctxE) {
+		t.Errorf("expected ctxE to not be in error chain, got: %v", err)
+	}
+}
