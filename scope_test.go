@@ -161,4 +161,9 @@ func TestScope_TwoTasksWithDifferentTimeouts(t *testing.T) {
 	if errors.Is(err, ctxE) {
 		t.Errorf("expected ctxE to not be in error chain, got: %v", err)
 	}
+	for i, e := range me.Unwrap() {
+		if e != context.DeadlineExceeded {
+			t.Errorf("expected deadline exceeded got: %v @ %d", e, i)
+		}
+	}
 }
