@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/grove_logo.svg" width="480" alt="grove">
+  <img src="assets/grove_logo.svg" alt="grove">
 </p>
 
 Grove is a Go library that gives goroutines a scope, an owner, and a lifetime. The core promise: when `grove.Run` returns, every goroutine it spawned has finished. No exceptions, no leaks, no goroutines running in the background.
