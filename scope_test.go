@@ -167,3 +167,30 @@ func TestScope_TwoTasksWithDifferentTimeouts(t *testing.T) {
 		}
 	}
 }
+
+func TestScope_ParentCancelledBeforeScopeTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	err := Run(ctx, func(g *Grove) error {
+		// cancel the context
+		g.Go("cancel-parent-ctx", func(ctx context.Context) error {
+			cancel()
+			return nil
+		})
+
+		scope := g.WithTimeout(100 * time.Millisecond)
+		scope.Go("after-cancel", func(ctx context.Context) error {
+			<-ctx.Done()
+			return ctx.Err()
+		})
+
+		return nil
+	})
+
+	if err == nil {
+		t.Errorf("expected error, got: %v", err)
+	}
+	if err != context.Canceled {
+		t.Errorf("expected context canceled error, got: %v", err)
+	}
+}
