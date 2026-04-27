@@ -54,6 +54,32 @@ func (reg *supervisorRegistry) Go(name string, fn func(ctx context.Context) erro
 	reg.tasks = append(reg.tasks, task)
 }
 
+// start a supervisor to track and maintain
+// the goroutines under it.
+func Supervise(
+	ctx context.Context,
+	strategy Strategy,
+	fn func(reg *supervisorRegistry) error,
+) error {
+	// create the registry
+	reg := supervisorRegistry{}
+
+	// run the function and collect errors
+	var errs []error
+	if err := fn(&reg); err != nil {
+		errs = append(errs, err)
+	}
+
+	// create the resChan
+	resChan := make(chan taskResult, len(reg.tasks))
+
+	for _, t := range reg.tasks {
+		launchTask(ctx, t, resChan)
+	}
+
+	return Join(errs...)
+}
+
 // launch a task into the supervisor
 func launchTask(
 	ctx context.Context,
