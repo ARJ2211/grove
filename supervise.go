@@ -34,14 +34,24 @@ const (
 	OneForAll                 // when one task fails, restart ALL the tasks
 )
 
-// start a supervisor to track and maintain
-// the goroutines under it.
-func Supervise(
-	ctx context.Context,
-	strategy Strategy,
-	fn func(g *Grove) error,
-) error {
-	return ErrNotImplemented
+// supervisor registry to track the tasks in the
+// supervisor grove
+type supervisorRegistry struct {
+	tasks []task // slice of tasks that it needs
+}
+
+// used to append the tasks or register them in the registry
+func (reg *supervisorRegistry) Go(name string, fn func(ctx context.Context) error) {
+	task := task{
+		name:       name,
+		fn:         fn,
+		retries:    0,
+		maxRetries: -1, // unlimited
+		delay:      30 * time.Millisecond,
+	}
+
+	// append the task into the registry
+	reg.tasks = append(reg.tasks, task)
 }
 
 // launch a task into the supervisor
