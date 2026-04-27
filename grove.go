@@ -77,5 +77,6 @@ func (g *Grove) Context() context.Context {
 }
 
 var (
-	ErrClosedGrove error = errors.New("cannot access closed grove")
+	ErrClosedGrove    error = errors.New("cannot access closed grove")
+	ErrNotImplemented error = errors.New("feature not implemented")
 )
