@@ -15,6 +15,13 @@ type task struct {
 	delay      time.Duration                   // the duration of task
 }
 
+// the result of a task that will be propogated
+// back to the supervisor over a channel
+type taskResult struct {
+	task task  // the task that failed / succeeded
+	err  error // the error propogated
+}
+
 // supervisor strategy for task restarts
 type Strategy int
 
@@ -23,3 +30,13 @@ const (
 	OneForOne                 // when one task fails, only restart that task
 	OneForAll                 // when one task fails, restart ALL the tasks
 )
+
+// start a supervisor to track and maintain
+// the goroutines under it.
+func Supervise(
+	ctx context.Context,
+	strategy Strategy,
+	fn func(g *Grove) error,
+) error {
+	return ErrNotImplemented
+}
