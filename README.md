@@ -270,4 +270,4 @@ if errors.As(err, &pe) {
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+Apache2.0. See [LICENSE](./LICENSE).
