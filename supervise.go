@@ -106,6 +106,7 @@ supervisorLoop:
 				// TODO: increment the retries
 				// TODO: add expo backoff
 				// TODO: run the task after backoff
+				continue
 			}
 
 			if running == 0 {
