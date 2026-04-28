@@ -97,8 +97,15 @@ supervisorLoop:
 			}
 		case <-ctx.Done():
 			for {
-				<-resChan
+				res := <-resChan
 				running -= 1
+
+				// collect errors from drained
+				// gortoutines
+				if res.err != nil {
+					errs = append(errs, res.err)
+				}
+
 				if running == 0 {
 					break
 				}
@@ -106,6 +113,7 @@ supervisorLoop:
 
 			// append a context cancelled error
 			errs = append(errs, ctx.Err())
+			break supervisorLoop
 		}
 	}
 
