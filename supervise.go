@@ -86,10 +86,26 @@ supervisorLoop:
 	for {
 		select {
 		case res := <-resChan:
-			// handle res
-			running -= 1
-			if res.err != nil {
+			// task finished cleanly
+			if res.err == nil {
+				running -= 1
+			}
+
+			// task finished with some error
+			// but it has exhausted all retries
+			if res.err != nil &&
+				res.task.maxRetries != -1 &&
+				res.task.retries >= res.task.maxRetries {
+				// collect errors and decrement
 				errs = append(errs, res.err)
+				running -= 1
+			}
+
+			// task finished with some error
+			if res.err != nil {
+				// TODO: increment the retries
+				// TODO: add expo backoff
+				// TODO: run the task after backoff
 			}
 
 			if running == 0 {
