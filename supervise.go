@@ -59,12 +59,13 @@ func (reg *supervisorRegistry) Go(name string, fn func(ctx context.Context) erro
 func Supervise(
 	ctx context.Context,
 	strategy Strategy,
-	fn func(reg *supervisorRegistry) error,
+	fn func(*supervisorRegistry) error,
 ) error {
-	// create the registry
+	// create the empty registry
 	reg := supervisorRegistry{}
 
 	// run the function and collect errors
+	// and register the tasks that need to be run
 	var errs []error
 	if err := fn(&reg); err != nil {
 		errs = append(errs, err)
@@ -73,8 +74,34 @@ func Supervise(
 	// create the resChan
 	resChan := make(chan taskResult, len(reg.tasks))
 
+	// run the tasks
 	for _, t := range reg.tasks {
 		launchTask(ctx, t, resChan)
+	}
+
+	// count of all running tasks
+	running := len(reg.tasks)
+
+supervisorLoop:
+	for {
+		select {
+		case res := <-resChan:
+			// handle res
+			running -= 1
+			if res.err != nil {
+				errs = append(errs, res.err)
+			}
+
+			if running == 0 {
+				break supervisorLoop
+			}
+		case <-ctx.Done():
+			if running == 0 {
+				<-resChan
+				errs = append(errs, ctx.Err())
+				break supervisorLoop
+			}
+		}
 	}
 
 	return Join(errs...)
