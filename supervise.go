@@ -96,11 +96,16 @@ supervisorLoop:
 				break supervisorLoop
 			}
 		case <-ctx.Done():
-			if running == 0 {
+			for {
 				<-resChan
-				errs = append(errs, ctx.Err())
-				break supervisorLoop
+				running -= 1
+				if running == 0 {
+					break
+				}
 			}
+
+			// append a context cancelled error
+			errs = append(errs, ctx.Err())
 		}
 	}
 
